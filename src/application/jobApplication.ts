@@ -2,52 +2,66 @@ import { NextFunction, Request, Response } from "express";
 import JobApplication from "../infrastructure/schemas/jobApplication";
 import { generateRating } from "./rating";
 
-
 export const createJobApplication = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const jobApplication = req.body;
-      console.log(jobApplication);
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const jobApplication = req.body;
+    console.log(jobApplication);
 
-      const createdJobApplication= await JobApplication.create(jobApplication);
+    const createdJobApplication = await JobApplication.create(jobApplication);
 
-      generateRating(createdJobApplication._id)
+    // Generate rating asynchronously
+    generateRating(createdJobApplication._id).catch((error) => {
+      console.error("Error generating rating:", error);
+    });
 
-      return res.status(201).send();
-    } catch (error) {
-      console.log(error) 
-      return res.status(500).send();
-    }
-  };
+    return res.status(201).send();
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send();
+  }
+};
 
-  
 export const getJobApplications = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-      const {jobid} = req.query;
-      if (jobid) {
-        const jobApplications = await JobApplication.find({job:jobid})
-        return res.status(200).json(jobApplications);
-      }
-
-
-      const jobApplications = await JobApplication.find().populate("job").exec();
+    const { jobid } = req.query;
+    if (jobid) {
+      const jobApplications = await JobApplication.find({ job: jobid });
       return res.status(200).json(jobApplications);
-    } catch (error) {
-      console.log(error) 
-      return res.status(500).send();
+    }
+
+    const jobApplications = await JobApplication.find().populate("job").exec();
+    return res.status(200).json(jobApplications);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send();
   }
 };
 
-export const getJobApplicationById = async (
+export const getJobApplicationById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const jobApplication = await JobApplication.findById(id).populate("job");
+    if (jobApplication === null) {
+      return res.status(404).send();
+    }
+    return res.status(200).json(jobApplication);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send();
+  }
+};
+
+export const generateJobApplicationFeedback = async (
   req: Request,
-  res: Response,
+  res: Response
 ) => {
   try {
     const { id } = req.params;
@@ -55,10 +69,16 @@ export const getJobApplicationById = async (
     if (jobApplication === null) {
       return res.status(404).send();
     }
-    return res.status(200).json(jobApplication);
-  } catch (error) {
-    console.log(error)
-    return res.status(500).send();
-  }
 
-}
+    await generateRating(jobApplication._id);
+
+    const updatedJobApplication = await JobApplication.findById(id).populate("job");
+    return res.status(200).json(updatedJobApplication);
+  } catch (error) {
+    console.log(error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({
+      error: `Failed to generate AI feedback: ${message}`,
+    });
+  }
+};
