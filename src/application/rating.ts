@@ -39,12 +39,11 @@ interface AiFeedback {
     feedback: string;
   }>;
   strengths: string[];
-  improvements: string[];
 }
 
 // Do not throw during module load. We'll validate inside the function
 const apiKey = process.env.OPENROUTER_API_KEY;
-const model = process.env.OPENROUTER_MODEL || "openai/gpt-oss-20b:free";
+const model = process.env.OPENROUTER_MODEL || "openrouter/free";
 
 const extractJson = (value: string) => {
   const trimmed = value.trim();
@@ -137,9 +136,6 @@ const normalizeFeedback = (value: unknown, answerCount: number): AiFeedback | nu
     strengths: Array.isArray(raw.strengths)
       ? raw.strengths.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).slice(0, 4)
       : [],
-    improvements: Array.isArray(raw.improvements)
-      ? raw.improvements.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).slice(0, 4)
-      : [],
   };
 };
 
@@ -169,7 +165,7 @@ export async function generateRating(jobApplicationId: Types.ObjectId) {
     "Score consistently with the answer ratings: Strong answers are usually 8-10, Adequate answers are usually 5-7, and Weak answers are usually 1-4.",
     "The overallRating must match the score: Excellent 9-10, Good 7-8, Average 5-6, Below Average 3-4, Poor 1-2.",
     "Use this exact JSON shape:",
-    `{"overallRating":"Excellent|Good|Average|Below Average|Poor","score":1,"summary":"2-3 sentences","answerFeedback":[{"questionIndex":0,"rating":"Strong|Adequate|Weak","feedback":"specific feedback"}],"strengths":["specific strength"],"improvements":["specific improvement"]}`,
+    `{"overallRating":"Excellent|Good|Average|Below Average|Poor","score":1,"summary":"1-2 concise sentences","answerFeedback":[{"questionIndex":0,"rating":"Strong|Adequate|Weak","feedback":"one concise, specific assessment"}],"strengths":["specific strength"]}`,
     `Role: ${job.title}`,
     `Job description: ${job.description || "Not provided"}`,
     "Candidate answers:",
@@ -194,6 +190,8 @@ export async function generateRating(jobApplicationId: Types.ObjectId) {
       },
       body: JSON.stringify({
         model,
+        max_tokens: 700,
+        provider: { sort: "latency" },
         messages: [
           {
             role: "user",

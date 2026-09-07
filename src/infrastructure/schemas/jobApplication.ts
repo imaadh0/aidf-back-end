@@ -24,7 +24,6 @@ const aiFeedbackSchema = new mongoose.Schema(
     summary: { type: String, required: true },
     answerFeedback: { type: [answerFeedbackSchema], default: [] },
     strengths: { type: [String], default: [] },
-    improvements: { type: [String], default: [] },
   },
   { _id: false }
 );
